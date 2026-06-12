@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Espresso Room Copywriting Console",
+  "description": "An interactive workspace for writing professional, fluff-free conversion copy for The Espresso Room, Bangalore.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

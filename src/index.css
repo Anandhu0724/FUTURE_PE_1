@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=JetBrains+Mono&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-theme-bg: var(--bg-root);
+  --color-theme-panel: var(--bg-panel);
+  --color-theme-panel-hover: var(--bg-panel-hover);
+  --color-theme-text: var(--text-primary);
+  --color-theme-muted: var(--text-secondary);
+  --color-theme-border: var(--border-panel);
+  --color-theme-border-hover: var(--border-panel-hover);
+  --color-theme-input: var(--bg-input);
+  --color-theme-input-border: var(--border-input);
+  --color-theme-input-text: var(--text-input);
+  --color-theme-card: var(--bg-card);
+}
+
+:root {
+  --bg-root: #0F0F0F;
+  --bg-panel: #1A1A1A;
+  --bg-panel-hover: #222222;
+  --text-primary: #F5F5F0;
+  --text-secondary: rgba(245, 245, 240, 0.45);
+  --border-panel: rgba(255, 255, 255, 0.08);
+  --border-panel-hover: rgba(255, 255, 255, 0.16);
+  --bg-input: #0F0F0F;
+  --border-input: rgba(255, 255, 255, 0.05);
+  --text-input: #F5F5F0;
+  --bg-card: #212121;
+}
+
+:root.light {
+  --bg-root: #F7F6F0;       /* Soft natural light clay/warm tea room background */
+  --bg-panel: #FFFFFF;      /* Pure pristine white paper panel */
+  --bg-panel-hover: #F2F1EC;
+  --text-primary: #1C1917;  /* High-contrast deep stone charcoal */
+  --text-secondary: #57534E;/* Rich warm mid-gray for readability */
+  --border-panel: #E2E1D9;  /* Soft tangible grid border */
+  --border-panel-hover: #C5C4B9;
+  --bg-input: #F7F6F1;      /* Subtle depressed form inputs */
+  --border-input: #E2E1D9;
+  --text-input: #1C1917;
+  --bg-card: #FAF9F4;       /* Tangible subtle container backgrounds */
+}
