@@ -1981,201 +1981,213 @@ export default function App() {
                     </div>
 
                     {/* Right: Dual Visual Gauges & Ratios */}
-                    <div className="space-y-3 justify-end flex flex-col relative">
+                    <div className="space-y-3 justify-end flex flex-col">
                       
-                      {/* Interactive Popover Tooltips Box */}
-                      <AnimatePresence>
-                        {hoveredMetric === 'sentiment' && (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                            transition={{ duration: 0.15, ease: 'easeOut' }}
-                            className="absolute right-0 bottom-full mb-3 z-50 w-80 bg-theme-panel border border-[#C18C5D]/50 rounded-2xl p-4 shadow-2xl shadow-black/90 backdrop-blur-md text-xs space-y-3"
-                          >
-                            <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                              <span className="font-bold text-theme-text uppercase tracking-wider flex items-center gap-1.5 font-sans">
-                                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                                Sentiment Word Breakdown
-                              </span>
-                              <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded text-theme-muted font-mono font-bold">
-                                Delta: {tone.sentimentDiff > 0 ? `+${tone.sentimentDiff}` : tone.sentimentDiff}
-                              </span>
-                            </div>
-
-                            <div className="space-y-2.5">
-                              {/* Solutions List */}
-                              <div>
-                                <div className="text-[9px] font-bold uppercase text-emerald-400 mb-1 flex items-center justify-between tracking-wide font-mono">
-                                  <span>☀️ Solution / Reward Keys ({tone.positiveCount})</span>
-                                  <span className="opacity-60 text-[8px]">Action: Relief</span>
-                                </div>
-                                {tone.positiveMatched.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {tone.positiveMatched.map((word, idx) => (
-                                      <span key={idx} className="bg-emerald-500/10 text-emerald-400 text-[9px] px-1.5 py-0.5 rounded border border-emerald-500/20 font-mono lower">
-                                        {word}
-                                      </span>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="text-[9px] text-theme-muted italic">
-                                    No positive/solution phrases found yet. Use uplifting keys like "painless", "success", or "safe".
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Pain List */}
-                              <div>
-                                <div className="text-[9px] font-bold uppercase text-red-500 mb-1 flex items-center justify-between tracking-wide font-mono">
-                                  <span>⚡ Agitational Pain Keys ({tone.negativeCount})</span>
-                                  <span className="opacity-60 text-[8px]">Action: Tension</span>
-                                </div>
-                                {tone.negativeMatched.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {tone.negativeMatched.map((word, idx) => (
-                                      <span key={idx} className="bg-red-500/10 text-red-400 text-[9px] px-1.5 py-0.5 rounded border border-red-500/20 font-mono">
-                                        {word}
-                                      </span>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="text-[9px] text-theme-muted italic">
-                                    No emotional pain points detected. Try adding "problem", "strain", or "aches" to generate narrative friction.
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="bg-white/5 p-2 rounded-xl text-[9px] leading-relaxed text-theme-muted border border-white/5 font-sans">
-                                <strong>Conversion Science:</strong> Persuasive copy triggers a prospect's localized <strong>Tension Points</strong> first (Pain) before validating credibility with a <strong>Credible Solution</strong>.
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-
-                        {hoveredMetric === 'voice' && (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                            transition={{ duration: 0.15, ease: 'easeOut' }}
-                            className="absolute right-0 bottom-full mb-3 z-50 w-80 bg-theme-panel border border-[#C18C5D]/50 rounded-2xl p-4 shadow-2xl shadow-black/90 backdrop-blur-md text-xs space-y-3"
-                          >
-                            <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                              <span className="font-bold text-theme-text uppercase tracking-wider flex items-center gap-1.5 font-sans">
-                                <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-                                Vibe Guidelines Alignment
-                              </span>
-                              <span className="text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded text-emerald-400 font-mono font-bold">
-                                {Math.round(Math.min(100, (tone.activeScore / 4) * 100))}% Match
-                              </span>
-                            </div>
-
-                            <div className="space-y-2.5">
-                              {/* Matched guides list */}
-                              <div>
-                                <div className="text-[9px] font-bold uppercase text-[#C18C5D] mb-1 font-mono tracking-wide">
-                                  ✓ Matched Guide Tokens ({tone.archetypeMatched.length})
-                                </div>
-                                {tone.archetypeMatched.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {tone.archetypeMatched.map((word, idx) => (
-                                      <span key={idx} className="bg-[#C18C5D]/10 text-[#C18C5D] text-[9px] px-1.5 py-0.5 rounded border border-[#C18C5D]/20 font-mono">
-                                        {word}
-                                      </span>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="text-[9px] text-theme-muted italic">
-                                    No matched guidelines keywords. Spray specialized tokens to build a target voice.
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Available Guides Checkbox list */}
-                              <div>
-                                <div className="text-[9px] font-bold uppercase text-theme-muted mb-1 font-mono tracking-wide">
-                                  🎯 Guide Vocabulary Guidelines (Snippet)
-                                </div>
-                                <div className="flex flex-wrap gap-1 select-none">
-                                  {tone.allArchetypeKeywords.slice(0, 12).map((word, idx) => {
-                                    const isMatched = tone.archetypeMatched.includes(word);
-                                    return (
-                                      <span 
-                                        key={idx} 
-                                        className={`text-[8.5px] px-1.5 py-0.5 rounded font-mono border ${
-                                          isMatched 
-                                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-bold' 
-                                            : 'bg-white/5 text-theme-muted/40 border-white/5'
-                                        }`}
-                                      >
-                                        {word}{isMatched ? ' ✓' : ''}
-                                      </span>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-
-                              <div className="bg-[#C18C5D]/5 p-2 rounded-xl text-[9px] leading-relaxed text-[#C18C5D] border border-[#C18C5D]/10 font-sans">
-                                <strong>Vibe Metric:</strong> "{tone.targetToneDescr}." Perfecting the keyword coverage creates massive authenticity matching.
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-
-                      {/* Diagnostic Emotion Tension Scale Segment (Hover Trigger) */}
+                      {/* Sentiment Gauge with integrated hover envelope */}
                       <div 
                         onMouseEnter={() => setHoveredMetric('sentiment')}
                         onMouseLeave={() => setHoveredMetric(null)}
-                        onClick={() => setHoveredMetric(hoveredMetric === 'sentiment' ? null : 'sentiment')}
-                        className="bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.02] hover:border-white/10 rounded-xl p-2.5 transition-all duration-200 cursor-help select-none group"
+                        className="relative"
                       >
-                        <div className="flex justify-between text-[9px] font-mono text-theme-muted mb-1 uppercase tracking-wider">
-                          <span className="flex items-center gap-1.5">
-                            Diagnostic Balance: <strong className="text-slate-300 group-hover:text-[#C18C5D] transition-colors">{tone.sentimentEmoji} {tone.sentimentLabel}</strong>
-                            <Info className="w-3 h-3 opacity-45 group-hover:opacity-100 transition-opacity text-[#C18C5D]" />
-                          </span>
-                          <span className="font-bold text-theme-text text-[10px]">Delta: {tone.sentimentDiff > 0 ? `+${tone.sentimentDiff}` : tone.sentimentDiff}</span>
-                        </div>
-                        <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden flex border border-white/5">
-                          {/* Agitation / Pain index */}
-                          <div 
-                            className="bg-red-500/40 duration-300 transition-all border-r border-black/20" 
-                            style={{ width: `${Math.max(5, Math.min(90, (tone.negativeCount / Math.max(1, tone.positiveCount + tone.negativeCount)) * 100))}%` }}
-                          ></div>
-                          {/* Uplifting / Benefits index */}
-                          <div 
-                            className="bg-emerald-500/40 flex-1 duration-300 transition-all"
-                          ></div>
-                        </div>
-                        <div className="flex justify-between text-[8px] font-mono font-bold uppercase tracking-widest mt-1">
-                          <span className="text-red-400/80 flex items-center gap-0.5">● {tone.negativeCount} Pain triggers</span>
-                          <span className="text-emerald-400/80 flex items-center gap-0.5">{tone.positiveCount} Solution rewards ●</span>
+                        <AnimatePresence>
+                          {hoveredMetric === 'sentiment' && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                              transition={{ duration: 0.15, ease: 'easeOut' }}
+                              className="absolute right-0 bottom-full mb-3 z-50 w-80 bg-theme-panel border border-[#C18C5D]/50 rounded-2xl p-4 shadow-2xl shadow-black/90 backdrop-blur-md text-xs space-y-3 pointer-events-auto"
+                            >
+                              <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                                <span className="font-bold text-theme-text uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                                  Sentiment Word Breakdown
+                                </span>
+                                <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded text-theme-muted font-mono font-bold">
+                                  Delta: {tone.sentimentDiff > 0 ? `+${tone.sentimentDiff}` : tone.sentimentDiff}
+                                </span>
+                              </div>
+
+                              <div className="space-y-2.5">
+                                {/* Solutions List */}
+                                <div>
+                                  <div className="text-[9px] font-bold uppercase text-emerald-400 mb-1 flex items-center justify-between tracking-wide font-mono">
+                                    <span>☀️ Solution / Reward Keys ({tone.positiveCount})</span>
+                                    <span className="opacity-60 text-[8px]">Action: Relief</span>
+                                  </div>
+                                  {tone.positiveMatched.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {tone.positiveMatched.map((word, idx) => (
+                                        <span key={idx} className="bg-emerald-500/10 text-emerald-400 text-[9px] px-1.5 py-0.5 rounded border border-emerald-500/20 font-mono lowercase">
+                                          {word}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="text-[9px] text-theme-muted italic">
+                                      No positive/solution phrases found yet. Use uplifting keys like "painless", "success", or "safe".
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Pain List */}
+                                <div>
+                                  <div className="text-[9px] font-bold uppercase text-red-500 mb-1 flex items-center justify-between tracking-wide font-mono">
+                                    <span>⚡ Agitational Pain Keys ({tone.negativeCount})</span>
+                                    <span className="opacity-60 text-[8px]">Action: Tension</span>
+                                  </div>
+                                  {tone.negativeMatched.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {tone.negativeMatched.map((word, idx) => (
+                                        <span key={idx} className="bg-red-500/10 text-red-400 text-[9px] px-1.5 py-0.5 rounded border border-red-500/20 font-mono">
+                                          {word}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="text-[9px] text-theme-muted italic">
+                                      No emotional pain points detected. Try adding "problem", "strain", or "aches" to generate narrative friction.
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="bg-white/5 p-2 rounded-xl text-[9px] leading-relaxed text-theme-muted border border-white/5 font-sans">
+                                  <strong>Conversion Science:</strong> Persuasive copy triggers a prospect's localized <strong>Tension Points</strong> first (Pain) before validating credibility with a <strong>Credible Solution</strong>.
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
+                        {/* Diagnostic Emotion Tension Scale Segment (Hover Trigger) */}
+                        <div 
+                          onClick={() => setHoveredMetric(hoveredMetric === 'sentiment' ? null : 'sentiment')}
+                          className="bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.02] hover:border-white/10 rounded-xl p-2.5 transition-all duration-200 cursor-help select-none group"
+                        >
+                          <div className="flex justify-between text-[9px] font-mono text-theme-muted mb-1 uppercase tracking-wider">
+                            <span className="flex items-center gap-1.5">
+                              Diagnostic Balance: <strong className="text-slate-300 group-hover:text-[#C18C5D] transition-colors">{tone.sentimentEmoji} {tone.sentimentLabel}</strong>
+                              <Info className="w-3 h-3 opacity-45 group-hover:opacity-100 transition-opacity text-[#C18C5D]" />
+                            </span>
+                            <span className="font-bold text-theme-text text-[10px]">Delta: {tone.sentimentDiff > 0 ? `+${tone.sentimentDiff}` : tone.sentimentDiff}</span>
+                          </div>
+                          <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden flex border border-white/5">
+                            {/* Agitation / Pain index */}
+                            <div 
+                              className="bg-red-500/40 duration-300 transition-all border-r border-black/20" 
+                              style={{ width: `${Math.max(5, Math.min(90, (tone.negativeCount / Math.max(1, tone.positiveCount + tone.negativeCount)) * 100))}%` }}
+                            ></div>
+                            {/* Uplifting / Benefits index */}
+                            <div 
+                              className="bg-emerald-500/40 flex-1 duration-300 transition-all"
+                            ></div>
+                          </div>
+                          <div className="flex justify-between text-[8px] font-mono font-bold uppercase tracking-widest mt-1">
+                            <span className="text-red-400/80 flex items-center gap-0.5">● {tone.negativeCount} Pain triggers</span>
+                            <span className="text-emerald-400/80 flex items-center gap-0.5">{tone.positiveCount} Solution rewards ●</span>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Brand alignment match progress index Segment (Hover Trigger) */}
+                      {/* Brand Voice Gauge with integrated hover envelope */}
                       <div 
                         onMouseEnter={() => setHoveredMetric('voice')}
                         onMouseLeave={() => setHoveredMetric(null)}
-                        onClick={() => setHoveredMetric(hoveredMetric === 'voice' ? null : 'voice')}
-                        className="bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.02] hover:border-white/10 rounded-xl p-2.5 transition-all duration-200 cursor-help select-none group"
+                        className="relative"
                       >
-                        <div className="flex justify-between text-[9px] font-mono text-theme-muted mb-1 uppercase tracking-wider">
-                          <span className="flex items-center gap-1.5">
-                            Identity Verification Coverage:
-                            <Info className="w-3 h-3 opacity-45 group-hover:opacity-100 transition-opacity text-[#C18C5D]" />
-                          </span>
-                          <span className="font-bold text-theme-text text-[10px]">{tone.activeScore} unique match markers</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
-                          <div 
-                            className="bg-[#C18C5D] h-full duration-300 transition-all rounded-full" 
-                            style={{ width: `${Math.min(100, (tone.activeScore / 5) * 100)}%` }}
-                          ></div>
+                        <AnimatePresence>
+                          {hoveredMetric === 'voice' && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                              transition={{ duration: 0.15, ease: 'easeOut' }}
+                              className="absolute right-0 bottom-full mb-3 z-50 w-80 bg-theme-panel border border-[#C18C5D]/50 rounded-2xl p-4 shadow-2xl shadow-black/90 backdrop-blur-md text-xs space-y-3 pointer-events-auto"
+                            >
+                              <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                                <span className="font-bold text-theme-text uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                                  <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                                  Vibe Guidelines Alignment
+                                </span>
+                                <span className="text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded text-emerald-400 font-mono font-bold">
+                                  {Math.round(Math.min(100, (tone.activeScore / 4) * 100))}% Match
+                                </span>
+                              </div>
+
+                              <div className="space-y-2.5">
+                                {/* Matched guides list */}
+                                <div>
+                                  <div className="text-[9px] font-bold uppercase text-[#C18C5D] mb-1 font-mono tracking-wide">
+                                    ✓ Matched Guide Tokens ({tone.archetypeMatched.length})
+                                  </div>
+                                  {tone.archetypeMatched.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {tone.archetypeMatched.map((word, idx) => (
+                                        <span key={idx} className="bg-[#C18C5D]/10 text-[#C18C5D] text-[9px] px-1.5 py-0.5 rounded border border-[#C18C5D]/20 font-mono">
+                                          {word}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="text-[9px] text-theme-muted italic">
+                                      No matched guidelines keywords. Spray specialized tokens to build a target voice.
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Available Guides list */}
+                                <div>
+                                  <div className="text-[9px] font-bold uppercase text-theme-muted mb-1 font-mono tracking-wide">
+                                    🎯 Guide Vocabulary Guidelines (Snippet)
+                                  </div>
+                                  <div className="flex flex-wrap gap-1 select-none">
+                                    {tone.allArchetypeKeywords.slice(0, 12).map((word, idx) => {
+                                      const isMatched = tone.archetypeMatched.includes(word);
+                                      return (
+                                        <span 
+                                          key={idx} 
+                                          className={`text-[8.5px] px-1.5 py-0.5 rounded font-mono border ${
+                                            isMatched 
+                                              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-bold' 
+                                              : 'bg-white/5 text-theme-muted/40 border-white/5'
+                                          }`}
+                                        >
+                                          {word}{isMatched ? ' ✓' : ''}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                <div className="bg-[#C18C5D]/5 p-2 rounded-xl text-[9px] leading-relaxed text-[#C18C5D] border border-[#C18C5D]/10 font-sans">
+                                  <strong>Vibe Metric:</strong> "{tone.targetToneDescr}." Perfecting the keyword coverage creates massive authenticity matching.
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
+                        {/* Brand alignment match progress index Segment (Hover Trigger) */}
+                        <div 
+                          onClick={() => setHoveredMetric(hoveredMetric === 'voice' ? null : 'voice')}
+                          className="bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.02] hover:border-white/10 rounded-xl p-2.5 transition-all duration-200 cursor-help select-none group"
+                        >
+                          <div className="flex justify-between text-[9px] font-mono text-theme-muted mb-1 uppercase tracking-wider">
+                            <span className="flex items-center gap-1.5">
+                              Identity Verification Coverage:
+                              <Info className="w-3 h-3 opacity-45 group-hover:opacity-100 transition-opacity text-[#C18C5D]" />
+                            </span>
+                            <span className="font-bold text-theme-text text-[10px]">{tone.activeScore} unique match markers</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                            <div 
+                              className="bg-[#C18C5D] h-full duration-300 transition-all rounded-full" 
+                              style={{ width: `${Math.min(100, (tone.activeScore / 5) * 100)}%` }}
+                            ></div>
+                          </div>
                         </div>
                       </div>
+
                     </div>
                   </div>
                 </div>
