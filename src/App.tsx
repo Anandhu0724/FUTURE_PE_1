@@ -50,6 +50,7 @@ import {
   ASSET_TYPES 
 } from './types';
 import HealthcareLandingPage from './components/HealthcareLandingPage';
+import { generateLocalCopyResponse } from './utils/localGenerator';
 
 const INITIAL_PROFILE: ClientProfile = {
   businessName: 'Apex Sports Med & Rehab',
@@ -453,100 +454,40 @@ export default function App() {
     return endpoint; // Default relative path
   };
 
-  // Run proxy generation callback
+  // Run local high-converting copywriter generation
   const handleGenerateCopy = async () => {
     setIsGenerating(true);
     setErrorMessage(null);
 
     try {
-      const requestUrl = getApiUrl('/api/copy/generate');
-      const response = await fetch(requestUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientProfile: profile,
-          framework,
-          assetType,
-          audienceFocus,
-          contextNotes,
-          wordCountLimit
-        })
-      });
+      // Simulate network/AI latency for a beautiful aesthetic experience (1 second spinner delay)
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      if (!response.ok) {
-        let errMsg = `HTTP error ${response.status}`;
-        try {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await response.json();
-            errMsg = errorData.error || errMsg;
-          } else {
-            const textData = await response.text();
-            const containsHtml = /<[a-z][\s\S]*>/i.test(textData) || textData.includes('<!DOCTYPE') || textData.includes('<html');
-            if (containsHtml) {
-              errMsg = `The request returned an HTML error page (status ${response.status}). If you deployed statically to a client-only host like Netlify, make sure you configure your VITE_API_URL environment variable to point to your live running backend server.`;
-            } else if (textData && textData.trim().startsWith('{')) {
-              try {
-                const parsed = JSON.parse(textData);
-                errMsg = parsed.error || errMsg;
-              } catch (_) {
-                errMsg = textData.substring(0, 150);
-              }
-            } else if (textData && textData.length < 300 && !textData.trim().startsWith('<')) {
-              errMsg = textData.trim();
-            } else {
-              errMsg = `Server returned an HTML or text error (status ${response.status}). Keep in mind that a client-only front-end deployment requires a separate backend service; please check your VITE_API_URL setup.`;
-            }
-          }
-        } catch (parseErr) {
-          console.error('Error parsing response error:', parseErr);
-        }
-        throw new Error(errMsg);
-      }
+      // Retrieve high-converting preset copy or procedurally generated customized marketing frameworks
+      const copyData = generateLocalCopyResponse(
+        profile,
+        framework,
+        assetType,
+        audienceFocus,
+        contextNotes,
+        wordCountLimit
+      );
 
-      // Check content-type of response
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const textPayload = await response.text();
-        console.error('Expected JSON but got:', textPayload);
-        const containsHtml = /<[a-z][\s\S]*>/i.test(textPayload) || textPayload.includes('<!DOCTYPE') || textPayload.includes('<html');
-        if (containsHtml) {
-          throw new Error(`Server returned an HTML response page (status ${response.status}) instead of JSON. If your frontend is on Netlify or Vercel, check that your dynamic VITE_API_URL points to the correct backend host.`);
-        }
-        throw new Error('Server returned an invalid non-JSON payload. This usually means the server is stale or restarting; please wait 5 seconds and retry.');
-      }
-
-      const copyData: CopyGenerationResponse = await response.json();
-      
       setGenerationResult(copyData);
       setHeadlineEdit(copyData.primaryHeadline || '');
       setSubheadlineEdit(copyData.subheadline || '');
       setBodyEdit(copyData.bodyText);
       setCtaEdit(copyData.callToAction || '');
-      setExplanationEdit(copyData.explanation || 'Constructed with fluff-free frameworks.');
+      setExplanationEdit(copyData.explanation || 'Constructed with fluff-free copywriting frameworks.');
       setGenerationKey(prev => prev + 1);
-      
+
       // Auto success feedback
       setCopyFeedback('Generated new pristine copy!');
       setTimeout(() => setCopyFeedback(null), 3500);
 
     } catch (err: any) {
       console.error(err);
-      const msg = err.message || '';
-      if (
-        msg.includes('503') || 
-        msg.toLowerCase().includes('capacity') || 
-        msg.toLowerCase().includes('high demand') || 
-        msg.toLowerCase().includes('unavailable') ||
-        msg.toLowerCase().includes('rate limit') ||
-        msg.toLowerCase().includes('failed to fetch')
-      ) {
-        setErrorMessage(
-          'Gemini is currently experiencing global high volume (Temporary Error 503). The application automatically tried multiple high-availability models with backoffs, but they are briefly saturated. Please wait a few seconds and try clicking "Generate Conversion Copy" again to route successfully!'
-        );
-      } else {
-        setErrorMessage(msg || 'Could not connect to the copywriter generator. Please ensure your API Key is valid and stored in Settings > Secrets.');
-      }
+      setErrorMessage(err.message || 'Could not draft custom conversion copy. Please verify your settings and parameters.');
     } finally {
       setIsGenerating(false);
     }
