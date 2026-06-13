@@ -41,7 +41,7 @@ An asymmetric design mapping the psychological copy points directly against clea
 ### 🖼️ 2. Dynamic Features & Services Grid
 A clean, grid-based card structure built to break down technical or clinical methodologies cleanly.
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/c2c3d460-2db2-4da4-a7a1-5329811386cb" width="800px" alt="Services Grid UI Blueprint" style="border-radius: 8px; border: 1px solid #e1e4e8;" />
+  <img src="https://github.com/user-attachments/assets/2b2e1ec6-77ad-433a-9ed4-15daa4b8a342" width="800px" alt="Services Grid UI Blueprint" style="border-radius: 8px; border: 1px solid #e1e4e8;" />
 </p>
 
 ---
