@@ -1,8 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=JetBrains+Mono&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   
   --color-theme-bg: var(--bg-root);
@@ -19,29 +18,72 @@
 }
 
 :root {
-  --bg-root: #0F0F0F;
-  --bg-panel: #1A1A1A;
-  --bg-panel-hover: #222222;
+  --bg-root: #070707;
+  --bg-panel: #111111;
+  --bg-panel-hover: #181818;
   --text-primary: #F5F5F0;
   --text-secondary: rgba(245, 245, 240, 0.45);
-  --border-panel: rgba(255, 255, 255, 0.08);
-  --border-panel-hover: rgba(255, 255, 255, 0.16);
-  --bg-input: #0F0F0F;
-  --border-input: rgba(255, 255, 255, 0.05);
+  --border-panel: rgba(255, 255, 255, 0.05);
+  --border-panel-hover: rgba(193, 140, 93, 0.25);
+  --bg-input: #0A0A0A;
+  --border-input: rgba(255, 255, 255, 0.04);
   --text-input: #F5F5F0;
-  --bg-card: #212121;
+  --bg-card: #151515;
 }
 
 :root.light {
-  --bg-root: #F7F6F0;       /* Soft natural light clay/warm tea room background */
-  --bg-panel: #FFFFFF;      /* Pure pristine white paper panel */
-  --bg-panel-hover: #F2F1EC;
-  --text-primary: #1C1917;  /* High-contrast deep stone charcoal */
-  --text-secondary: #57534E;/* Rich warm mid-gray for readability */
-  --border-panel: #E2E1D9;  /* Soft tangible grid border */
-  --border-panel-hover: #C5C4B9;
-  --bg-input: #F7F6F1;      /* Subtle depressed form inputs */
-  --border-input: #E2E1D9;
-  --text-input: #1C1917;
-  --bg-card: #FAF9F4;       /* Tangible subtle container backgrounds */
+  --bg-root: #F5F4EE;       /* Elegant natural linen warm tone */
+  --bg-panel: #FFFFFF;      /* Pristine premium thick paper */
+  --bg-panel-hover: #FAF9F3;
+  --text-primary: #151311;  /* High-contrast charcoal obsidian */
+  --text-secondary: #5C5852;/* Earthy warm ash grey */
+  --border-panel: #E3E0D2;  /* Structured grid line */
+  --border-panel-hover: rgb(193, 140, 93);
+  --bg-input: #FAF9F4;      /* Soft inset elements */
+  --border-input: #E2DFD0;
+  --text-input: #151311;
+  --bg-card: #FCFCFA;       /* Tactile ivory card */
 }
+
+/* Custom scrollbars for a clean system interface */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(193, 140, 93, 0.25);
+  border-radius: 9px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(193, 140, 93, 0.5);
+}
+
+/* Biomechanical Scanline and active laser highlights */
+@keyframes scanning {
+  0% { transform: translateY(-10%) opacity: 0.1; }
+  50% { opacity: 0.6; }
+  100% { transform: translateY(110%) opacity: 0.1; }
+}
+
+.animate-scanline {
+  animation: scanning 3.5s infinite linear;
+}
+
+/* Subtle continuous drift for background orbs */
+@keyframes floatOrb {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -40px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+}
+
+.animate-float-slow {
+  animation: floatOrb 16s infinite ease-in-out;
+}
+
+.animate-float-medium {
+  animation: floatOrb 12s infinite ease-in-out reverse;
+}
+

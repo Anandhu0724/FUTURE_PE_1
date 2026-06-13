@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Coffee, 
   LayoutTemplate, 
@@ -35,7 +36,9 @@ import {
   Moon,
   Search,
   X,
-  Zap
+  Zap,
+  Info,
+  HelpCircle
 } from 'lucide-react';
 import { 
   ClientProfile, 
@@ -46,6 +49,7 @@ import {
   FRAMEWORK_DETAILS, 
   ASSET_TYPES 
 } from './types';
+import HealthcareLandingPage from './components/HealthcareLandingPage';
 
 const INITIAL_PROFILE: ClientProfile = {
   businessName: 'Apex Sports Med & Rehab',
@@ -255,6 +259,11 @@ export default function App() {
   const [assetType, setAssetType] = useState<CopyAssetType>('landing-hero');
   const [audienceFocus, setAudienceFocus] = useState<string>('Local athletes & plantation owners');
 
+  // Healthcare and Auto-save States
+  const [activeTab, setActiveTab] = useState<'editor' | 'landing-page'>('editor');
+  const [lastAutoSavedAt, setLastAutoSavedAt] = useState<string | null>(null);
+  const [isAutoSaving, setIsAutoSaving] = useState<boolean>(false);
+
   useEffect(() => {
     if (theme === 'light') {
       document.documentElement.classList.add('light');
@@ -299,6 +308,7 @@ export default function App() {
   const [ctaEdit, setCtaEdit] = useState<string>(INITIAL_GENERATION.callToAction || '');
   const [secondaryCtaEdit, setSecondaryCtaEdit] = useState<string>('View today\'s roast selection');
   const [explanationEdit, setExplanationEdit] = useState<string>(INITIAL_GENERATION.explanation || '');
+  const [hoveredMetric, setHoveredMetric] = useState<'sentiment' | 'voice' | null>(null);
 
   // Saved workspace list
   const [drafts, setDrafts] = useState<WorkspaceDraft[]>([]);
@@ -306,12 +316,13 @@ export default function App() {
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [draftNotification, setDraftNotification] = useState<string | null>(null);
 
-  // Load Saved drafts from storage or fallback to samples
+  // Load Saved drafts & Saved active editor state from storage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('espresso_copy_drafts');
-    if (saved) {
+    // 1. Load Drafts
+    const msg = localStorage.getItem('espresso_copy_drafts');
+    if (msg) {
       try {
-        setDrafts(JSON.parse(saved));
+        setDrafts(JSON.parse(msg));
       } catch (e) {
         setDrafts(SAMPLE_DRAFTS);
       }
@@ -319,6 +330,100 @@ export default function App() {
       setDrafts(SAMPLE_DRAFTS);
       localStorage.setItem('espresso_copy_drafts', JSON.stringify(SAMPLE_DRAFTS));
     }
+
+    // 2. Load Active Editor State
+    const savedEditor = localStorage.getItem('espresso_editor_state');
+    if (savedEditor) {
+      try {
+        const parsed = JSON.parse(savedEditor);
+        if (parsed.activeArchetype) setActiveArchetype(parsed.activeArchetype);
+        if (parsed.profile) setProfile(parsed.profile);
+        if (parsed.framework) setFramework(parsed.framework);
+        if (parsed.assetType) setAssetType(parsed.assetType);
+        if (parsed.audienceFocus) setAudienceFocus(parsed.audienceFocus);
+        if (parsed.contextNotes) setContextNotes(parsed.contextNotes);
+        if (parsed.wordCountLimit) setWordCountLimit(parsed.wordCountLimit);
+        
+        if (parsed.headlineEdit !== undefined) setHeadlineEdit(parsed.headlineEdit);
+        if (parsed.subheadlineEdit !== undefined) setSubheadlineEdit(parsed.subheadlineEdit);
+        if (parsed.bodyEdit !== undefined) setBodyEdit(parsed.bodyEdit);
+        if (parsed.ctaEdit !== undefined) setCtaEdit(parsed.ctaEdit);
+        if (parsed.secondaryCtaEdit !== undefined) setSecondaryCtaEdit(parsed.secondaryCtaEdit);
+        if (parsed.explanationEdit !== undefined) setExplanationEdit(parsed.explanationEdit);
+        if (parsed.lastSaved) setLastAutoSavedAt(parsed.lastSaved);
+      } catch (e) {
+        console.error('Error restoring auto-saved editor state', e);
+      }
+    }
+  }, []);
+
+  // Sync state values to a mutable reference object for thread-safe access in the 30s auto-save interval
+  const liveStateRef = React.useRef({
+    activeArchetype,
+    profile,
+    framework,
+    assetType,
+    audienceFocus,
+    contextNotes,
+    wordCountLimit,
+    headlineEdit,
+    subheadlineEdit,
+    bodyEdit,
+    ctaEdit,
+    secondaryCtaEdit,
+    explanationEdit
+  });
+
+  useEffect(() => {
+    liveStateRef.current = {
+      activeArchetype,
+      profile,
+      framework,
+      assetType,
+      audienceFocus,
+      contextNotes,
+      wordCountLimit,
+      headlineEdit,
+      subheadlineEdit,
+      bodyEdit,
+      ctaEdit,
+      secondaryCtaEdit,
+      explanationEdit
+    };
+  }, [
+    activeArchetype,
+    profile,
+    framework,
+    assetType,
+    audienceFocus,
+    contextNotes,
+    wordCountLimit,
+    headlineEdit,
+    subheadlineEdit,
+    bodyEdit,
+    ctaEdit,
+    secondaryCtaEdit,
+    explanationEdit
+  ]);
+
+  // Periodic Auto-save effect: Runs actively every 30 seconds
+  useEffect(() => {
+    const autoSaveInterval = setInterval(() => {
+      const currentEditor = liveStateRef.current;
+      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      
+      const persistentPayload = {
+        ...currentEditor,
+        lastSaved: timestamp
+      };
+
+      localStorage.setItem('espresso_editor_state', JSON.stringify(persistentPayload));
+      setLastAutoSavedAt(timestamp);
+      setIsAutoSaving(true);
+      setTimeout(() => setIsAutoSaving(false), 1500);
+    }, 30000);
+
+    return () => clearInterval(autoSaveInterval);
   }, []);
 
   // Update target limit on asset type change
@@ -480,6 +585,135 @@ export default function App() {
   const getEditorWordCount = () => {
     const combined = `${headlineEdit} ${subheadlineEdit} ${bodyEdit} ${ctaEdit}`;
     return combined.split(/\s+/).filter(w => w.length > 0).length;
+  };
+
+  const getTriggerWords = (): string[] => {
+    switch (activeArchetype) {
+      case 'cafe':
+        return ['focus', 'roasted', 'single-origin', 'unbroken', 'quiet', 'ergonomic'];
+      case 'clinic':
+        return ['sterile', 'certified', 'painless', 'registered', 'safety', 'chief'];
+      case 'salon':
+        return ['botanical', 'bespoke', 'glow', 'organic', 'hydration', 'elite'];
+      case 'sportsmed':
+        return ['biomechanical', 'robotic', 'restoration', 'private', 'laser', 'fda'];
+      default:
+        return ['focus', 'roasted', 'certified', 'restoration', 'painless', 'sterile'];
+    }
+  };
+
+  const getActiveTriggers = (): string[] => {
+    const text = `${headlineEdit} ${subheadlineEdit} ${bodyEdit} ${ctaEdit}`.toLowerCase();
+    return getTriggerWords().filter(word => text.includes(word));
+  };
+
+  const analyzeBodyTone = () => {
+    const text = `${headlineEdit} ${subheadlineEdit} ${bodyEdit} ${ctaEdit}`.toLowerCase();
+    
+    const cafeKeys = ['roasted', 'single-origin', 'focus', 'quiet', 'friendly', 'relaxed', 'cozy', 'espresso', 'coffee', 'ergonomic', 'community', 'freelancer', 'brew', 'co-working', 'workspace', 'cup', 'beans', 'latte'];
+    const clinicKeys = ['certified', 'sterile', 'painless', 'safety', 'registered', 'professional', 'compassionate', 'expert', 'audit', 'doctor', 'patient', 'clinical', 'care', 'apex', 'dental', 'hygiene', 'safety', 'fees'];
+    const salonKeys = ['glow', 'botanical', 'organic', 'hydration', 'elite', 'bespoke', 'signature', 'beauty', 'transformation', 'vibrant', 'styling', 'stylist', 'skin', 'hair', 'velvet', 'confidence'];
+    const sportsmedKeys = ['biomechanical', 'robotic', 'restoration', 'laser', 'fda', 'musculoskeletal', 'recovery', 'unsupervised', 'private', 'practitioner', 'joint', 'physio', 'athletes', 'plantation', 'rehab', 'treatment'];
+
+    const countMatches = (keys: string[]) => keys.filter(k => text.includes(k)).length;
+    const getMatches = (keys: string[]) => keys.filter(k => text.includes(k));
+
+    const scores = {
+      cafe: countMatches(cafeKeys),
+      clinic: countMatches(clinicKeys),
+      salon: countMatches(salonKeys),
+      sportsmed: countMatches(sportsmedKeys)
+    };
+
+    const positiveWords = ['restore', 'painless', 'premium', 'elite', 'safe', 'trusted', 'beautiful', 'expert', 'success', 'solution', 'relieve', 'glow', 'perfect', 'guarantee', 'quality', 'health', 'unbroken', 'flow', 'advanced'];
+    const negativeWords = ['problem', 'agitation', 'pain', 'strain', 'aches', 'stiff', 'anxiety', 'unsupervised', 'assembly-line', 'trainee', 'coldness', 'fear', 'dirty', 'hidden', 'fees', 'generic', 'damaged', 'unstable', 'noise', 'deafening', 'bitter', 'overpriced'];
+
+    const positiveMatched = positiveWords.filter(w => text.includes(w));
+    const negativeMatched = negativeWords.filter(w => text.includes(w));
+    const positiveCount = positiveMatched.length;
+    const negativeCount = negativeMatched.length;
+
+    const sentimentDiff = positiveCount - negativeCount;
+    let sentimentLabel = "Balanced Tone";
+    let sentimentEmoji = "📊";
+    if (sentimentDiff > 1) {
+      sentimentLabel = "Solution Focus";
+      sentimentEmoji = "☀️";
+    } else if (sentimentDiff < -1) {
+      sentimentLabel = "Pain Agitation Focus";
+      sentimentEmoji = "⚡";
+    }
+
+    let activeScore = 0;
+    let targetVoiceEmoji = "⚪";
+    let targetVoiceName = "General Copy";
+    let targetToneDescr = "Neutral tone";
+    let sampleKeywords: string[] = [];
+    let activeKeys: string[] = [];
+
+    switch (activeArchetype) {
+      case 'cafe':
+        activeScore = scores.cafe;
+        activeKeys = cafeKeys;
+        targetVoiceEmoji = "☕";
+        targetVoiceName = "Specialty Cafe";
+        targetToneDescr = "Warm, community-driven, productive & relaxed";
+        sampleKeywords = ['roasted', 'single-origin', 'quiet', 'cozy', 'relaxed'];
+        break;
+      case 'clinic':
+        activeScore = scores.clinic;
+        activeKeys = clinicKeys;
+        targetVoiceEmoji = "👔";
+        targetVoiceName = "Certified Clinic";
+        targetToneDescr = "Professional, clinical, empathetic & authoritative";
+        sampleKeywords = ['certified', 'sterile', 'safety', 'painless', 'expert'];
+        break;
+      case 'salon':
+        activeScore = scores.salon;
+        activeKeys = salonKeys;
+        targetVoiceName = "Beauty Salon";
+        targetVoiceEmoji = "🚀";
+        targetToneDescr = "Trendy, invigorating, style-focused & aesthetic";
+        sampleKeywords = ['glow', 'botanical', 'hydration', 'bespoke', 'vibrant'];
+        break;
+      case 'sportsmed':
+        activeScore = scores.sportsmed;
+        activeKeys = sportsmedKeys;
+        targetVoiceEmoji = "⚡";
+        targetVoiceName = "Sports Med";
+        targetToneDescr = "Authoritative, clinically active & focused on restoration";
+        sampleKeywords = ['biomechanical', 'robotic', 'restoration', 'laser', 'fda'];
+        break;
+    }
+
+    const archetypeMatched = getMatches(activeKeys);
+
+    const confidenceLabel = activeScore >= 4 
+      ? "Pristine Voice" 
+      : activeScore >= 2 
+        ? "Resonant Voice" 
+        : activeScore >= 1 
+          ? "Surface Tone" 
+          : "Under-Optimized Tone";
+
+    return {
+      scores,
+      activeScore,
+      targetVoiceEmoji,
+      targetVoiceName,
+      targetToneDescr,
+      sampleKeywords,
+      confidenceLabel,
+      sentimentDiff,
+      sentimentLabel,
+      sentimentEmoji,
+      positiveCount,
+      negativeCount,
+      positiveMatched,
+      negativeMatched,
+      archetypeMatched,
+      allArchetypeKeywords: activeKeys
+    };
   };
 
   // Export current draft copy to client-ready high-contrast PDF layout
@@ -1163,11 +1397,27 @@ export default function App() {
     return titleMatch || clientMatch;
   });
 
+  const tone = analyzeBodyTone();
+
   return (
-    <div id="app-root" className="min-h-screen bg-theme-bg text-theme-text font-sans p-4 md:p-8 flex flex-col antialiased transition-colors duration-200">
+    <div id="app-root" className="min-h-screen bg-theme-bg text-theme-text font-sans p-4 md:p-8 pb-20 md:pb-24 flex flex-col antialiased transition-colors duration-200 relative overflow-x-hidden z-10">
       
+      {/* Dynamic drifting premium ambient gradient backdrops */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 select-none">
+        {/* Soft Gold/Bronze Orb */}
+        <div className="absolute top-[8%] left-[-100px] w-[500px] h-[500px] rounded-full bg-[#C18C5D]/5 dark:bg-[#C18C5D]/3 blur-[140px] animate-float-slow opacity-80 pointer-events-none"></div>
+        {/* Soft Clinical Teal Orb */}
+        <div className="absolute bottom-[15%] right-[-120px] w-[600px] h-[600px] rounded-full bg-[#14B8A6]/6 dark:bg-[#14B8A6]/2.5 blur-[160px] animate-float-medium opacity-70 pointer-events-none"></div>
+        
+        {/* Very subtle grid blueprint lines for tactile texture */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(193,140,93,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(193,140,93,0.02)_1px,transparent_1px)] bg-[size:32px_32px] opacity-60"></div>
+      </div>
+
+      {/* Structured Content Centering Layout Frame */}
+      <div className="max-w-7xl mx-auto w-full flex-grow flex flex-col relative z-20">
+
       {/* Breadcrumb Navigation Trail */}
-      <nav className="flex items-center gap-2 text-[10px] font-mono tracking-wider uppercase text-theme-muted mb-6">
+      <nav className="flex items-center gap-2 text-[10px] font-mono tracking-wider uppercase text-theme-muted mb-6 relative z-10">
         <span className="hover:text-theme-text transition-colors cursor-pointer">Home</span>
         <span className="text-theme-muted/50 select-none">/</span>
         <span className="text-[#C18C5D] font-bold">Copywriting Console</span>
@@ -1211,25 +1461,18 @@ export default function App() {
       </div>
 
       {/* Header Banner */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8" style={{ marginRight: '109px' }}>
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 w-full">
         <div className="flex items-center gap-3">
           <div 
-            className="w-12 h-12 bg-[#C18C5D] rounded-xl flex items-center justify-center font-bold text-black text-xs shadow-lg shadow-[#C18C5D]/10 px-1 text-center font-mono uppercase"
-            style={{ fontStyle: 'normal', fontWeight: 'bold', fontFamily: 'Times New Roman', width: '36px', height: '36px', fontSize: '8px' }}
+            className="w-12 h-12 bg-[#C18C5D] rounded-xl flex items-center justify-center font-bold text-black text-xs shadow-lg shadow-[#C18C5D]/10 px-1 text-center font-sans uppercase"
           >
             {profile.businessName.split(' ').map(w => w[0]).join('') || 'AP'}
           </div>
           <div>
-            <h1 
-              className="text-xl md:text-2xl font-black tracking-tight uppercase flex items-center gap-2"
-              style={{ width: '256.219px' }}
-            >
-              {profile.businessName} <span className="text-xs bg-[#C18C5D]/20 text-[#C18C5D] border border-[#C18C5D]/30 py-0.5 px-2.5 rounded-full lowercase tracking-normal" style={{ backgroundColor: '#452106', width: '85.5312px' }}>copywriting console</span>
+            <h1 className="text-xl md:text-2xl font-black tracking-tight uppercase flex items-center gap-2">
+              {profile.businessName} <span className="text-xs bg-[#C18C5D]/20 text-[#C18C5D] border border-[#C18C5D]/30 py-0.5 px-2.5 rounded-full lowercase tracking-normal">copywriting console</span>
             </h1>
-            <p 
-              className="text-xs text-theme-muted tracking-wide uppercase font-semibold"
-              style={{ width: '251.219px' }}
-            >
+            <p className="text-xs text-theme-muted tracking-wide uppercase font-semibold">
               {profile.industry} • Conversion Engine
             </p>
           </div>
@@ -1247,7 +1490,6 @@ export default function App() {
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             className="px-3.5 py-2.5 bg-theme-panel hover:bg-theme-panel-hover border border-theme-border rounded-full text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-200 text-theme-text"
             title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            style={{ height: '33px', width: '86.4375px' }}
           >
             {theme === 'dark' ? (
               <>
@@ -1264,8 +1506,7 @@ export default function App() {
           
           <button 
             onClick={() => handleExportPDF()}
-            className="flex-1 md:flex-none px-4 py-2.5 bg-[#C18C5D]/10 hover:bg-[#C18C5D]/20 border border-[#C18C5D]/30 text-[#C18C5D] rounded-full font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-200"
-            style={{ width: '136.578px', fontSize: '10px' }}
+            className="flex-1 md:flex-none px-4 py-2.5 bg-[#C18C5D]/10 hover:bg-[#C18C5D]/20 border border-[#C18C5D]/30 text-[#C18C5D] rounded-full font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-200 text-xs"
           >
             <Printer className="w-3.5 h-3.5 text-[#C18C5D]" />
             <span>Export PDF Client Brief</span>
@@ -1276,8 +1517,7 @@ export default function App() {
               `Headline: ${headlineEdit}\nSubheadline: ${subheadlineEdit}\n\nBody:\n${bodyEdit}\n\nCTA: ${ctaEdit}`,
               'Complete asset bundle'
             )}
-            className="flex-1 md:flex-none px-4 py-2.5 bg-theme-panel hover:bg-theme-panel-hover border border-theme-border rounded-full font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-200"
-            style={{ fontSize: '10px', width: '131.906px' }}
+            className="flex-1 md:flex-none px-4 py-2.5 bg-theme-panel hover:bg-theme-panel-hover border border-theme-border rounded-full font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-200 text-xs"
           >
             <Clipboard className="w-3.5 h-3.5 text-theme-text/60" />
             <span>Copy Full Package</span>
@@ -1286,10 +1526,13 @@ export default function App() {
       </header>
 
       {/* Main Grid Workspace */}
-      <main className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow items-stretch">
+      <main className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow items-stretch w-full">
         
-        {/* PANEL 1: CLIENT BIOS & INFRASTRUCTURE (Span 4) */}
-        <section id="bento-client-bio" className="lg:col-span-4 bg-theme-panel border border-theme-border rounded-3xl p-6 flex flex-col justify-between hover:border-theme-border-hover transition-all duration-300">
+        {/* Left Sidebar Layout carrying Client Profile & Command Inputs (Span 4) */}
+        <div className="lg:col-span-4 flex flex-col gap-6">
+          
+          {/* PANEL 1: CLIENT BIOS & INFRASTRUCTURE */}
+          <section id="bento-client-bio" className="bg-theme-panel border border-theme-border rounded-3xl p-6 flex flex-col justify-between hover:border-theme-border-hover transition-all duration-300 flex-1">
           <div>
             <div className="flex justify-between items-start mb-4">
               <span className="px-3 py-1 bg-[#C18C5D]/15 border border-[#C18C5D]/30 text-[#C18C5D] text-[10px] font-bold rounded-full uppercase tracking-widest">
@@ -1464,8 +1707,8 @@ export default function App() {
           </div>
         </section>
 
-        {/* PANEL 2: CONSOLE GENERATOR COMMANDS (Span 4) */}
-        <section id="bento-controls" className="lg:col-span-4 bg-theme-panel border border-theme-border rounded-3xl p-6 flex flex-col justify-between hover:border-theme-border-hover transition-all duration-300">
+        {/* PANEL 2: CONSOLE GENERATOR COMMANDS */}
+        <section id="bento-controls" className="bg-theme-panel border border-theme-border rounded-3xl p-6 flex flex-col justify-between hover:border-theme-border-hover transition-all duration-300">
           <div className="space-y-6 text-theme-text">
             <div className="flex justify-between items-center">
               <h2 className="text-xs font-bold uppercase tracking-widest text-theme-muted">
@@ -1606,209 +1849,550 @@ export default function App() {
           </div>
         </section>
 
+        </div>
+
         {/* PANEL 3 & 4 (Combined in Layout): DYNAMIC COPYWRITER PRISTINE GENERATOR & EDITOR (Span 8) */}
-        <section id="bento-engine" className="lg:col-span-8 flex flex-col gap-6 text-theme-text">
+        <section id="bento-engine" className="lg:col-span-8 flex flex-col gap-6 text-theme-text font-sans">
           
-          {/* Main Workspace Frame */}
-          <div className="bg-theme-panel border border-theme-border rounded-3xl p-6 flex flex-col justify-between flex-grow hover:border-theme-border-hover transition-all duration-300">
-            <div className="space-y-6">
-              
-              {/* Workspace Header Stats */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-theme-border">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse"></span>
-                  <h2 className="text-xs font-bold uppercase tracking-widest text-theme-text">
-                    Pristine Copywriter Editor
-                  </h2>
-                </div>
-
-                <div className="flex items-center gap-4 text-[11px] font-mono opacity-60 text-theme-muted">
-                  <span className="flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-[#C18C5D]" />
-                    <span>Framework: <strong className="text-theme-text">{framework}</strong></span>
-                  </span>
-                  
-                  <span className="w-px h-3 bg-white/10"></span>
-                  
-                  <span className="flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-[#C18C5D]" />
-                    <span>
-                      Words: <strong className={getEditorWordCount() > wordCountLimit ? 'text-amber-400' : 'text-emerald-400'}>
-                        {getEditorWordCount()}
-                      </strong> / {wordCountLimit}
-                    </span>
-                  </span>
-                </div>
-              </div>
-
-              {/* LIVE TACTILE EDITOR INPUTS */}
-              <div className="space-y-4">
-                
-                {/* Headline input (conditionally displayed if available in response) */}
-                <div>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-theme-muted">
-                      {assetType === 'closing-cta' ? 'Urgency- / Proximity-Based Hook' : 'Primary Headline (Pattern Disruptor)'}
-                    </label>
-                    <button 
-                      onClick={() => handleCopyToClipboard(headlineEdit, assetType === 'closing-cta' ? 'Urgency Hook' : 'Headline')}
-                      className="text-[10px] text-[#C18C5D] hover:underline flex items-center gap-1 font-semibold"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    value={headlineEdit}
-                    onChange={(e) => setHeadlineEdit(e.target.value)}
-                    className="w-full bg-theme-input border border-theme-input-border rounded-xl px-4 py-3 text-sm font-bold text-theme-text focus:outline-none focus:border-[#C18C5D] bg-theme-bg"
-                    placeholder={assetType === 'closing-cta' ? "e.g., Only 12 peak-hour desks remain today (2 mins from Koramangala park)..." : "Provide a pattern disruptor headline..."}
-                  />
-                </div>
-
-                {/* Subheadline input (conditionally shown) */}
-                <div>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-theme-muted">
-                      {assetType === 'closing-cta' ? 'Trust-Building Micro-Copy (Social Proof)' : 'Subheadline (Immediate Functional Benefit)'}
-                    </label>
-                    <button 
-                      onClick={() => handleCopyToClipboard(subheadlineEdit, assetType === 'closing-cta' ? 'Social Proof' : 'Subheadline')}
-                      className="text-[10px] text-[#C18C5D] hover:underline flex items-center gap-1 font-semibold"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    value={subheadlineEdit}
-                    onChange={(e) => setSubheadlineEdit(e.target.value)}
-                    className="w-full bg-theme-input border border-theme-input-border rounded-xl px-4 py-2.5 text-xs text-theme-text focus:outline-none focus:border-[#C18C5D] bg-theme-bg"
-                    placeholder={assetType === 'closing-cta' ? "e.g., Rated 4.9/5 stars by 400+ Bangalore remote engineers." : "Provide subtext highlighting immediate value props..."}
-                  />
-                </div>
-
-                {/* Core Framework Body Statement */}
-                <div>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-theme-muted">
-                      {assetType === 'closing-cta' ? 'Local SEO Details (Address, Hours, Contact)' : `Persuasive Body Copy (Structured by ${framework})`}
-                    </label>
-                    <button 
-                      onClick={() => handleCopyToClipboard(bodyEdit, assetType === 'closing-cta' ? 'Local SEO Details' : 'Body Copy')}
-                      className="text-[10px] text-[#C18C5D] hover:underline flex items-center gap-1 font-semibold"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                  <textarea
-                    value={bodyEdit}
-                    onChange={(e) => setBodyEdit(e.target.value)}
-                    rows={6}
-                    className="w-full bg-theme-input border border-theme-input-border rounded-xl p-4 text-xs leading-relaxed text-theme-text focus:outline-none focus:border-[#C18C5D] font-mono resize-y bg-theme-bg"
-                    placeholder={assetType === 'closing-cta' ? "e.g., 14, 80 Feet Rd, Koramangala...\nOpen Mon-Sun: 8:00 AM - 11:00 PM\nHotline: +91 80 4912 3670" : "Persuasive body block..."}
-                  />
-                </div>
-
-                {/* Low friction Action/CTA */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Inputs Column */}
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-theme-muted mb-1.5">
-                        Primary Conversion CTA Button
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={ctaEdit}
-                          onChange={(e) => setCtaEdit(e.target.value)}
-                          className="w-full bg-theme-input border border-theme-input-border rounded-xl px-4 py-2.5 text-xs text-theme-text focus:outline-none focus:border-[#C18C5D] font-semibold bg-theme-bg"
-                          placeholder="Primary CTA Label"
-                        />
-                        <button 
-                          onClick={() => handleCopyToClipboard(ctaEdit, 'Primary CTA')}
-                          className="p-2.5 bg-theme-card border border-theme-border rounded-xl text-xs text-[#C18C5D] hover:text-theme-text"
-                          title="Copy Primary CTA"
-                        >
-                          <Clipboard className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-[#C18C5D] mb-1.5">
-                        Secondary (Low-friction Alternate) CTA
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={secondaryCtaEdit}
-                          onChange={(e) => setSecondaryCtaEdit(e.target.value)}
-                          className="w-full bg-theme-input border border-theme-input-border rounded-xl px-4 py-2.5 text-xs text-theme-text focus:outline-none focus:border-[#C18C5D] font-medium bg-theme-bg"
-                          placeholder="Secondary CTA..."
-                        />
-                        <button 
-                          onClick={() => handleCopyToClipboard(secondaryCtaEdit, 'Secondary CTA')}
-                          className="p-2.5 bg-theme-card border border-theme-border rounded-xl text-xs text-[#C18C5D] hover:text-theme-text"
-                          title="Copy Secondary CTA"
-                        >
-                          <Clipboard className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Visual Preview Panel */}
-                  <div className="flex flex-col justify-center bg-theme-card/30 rounded-2xl border border-theme-border p-4">
-                    <span className="block text-[10px] font-bold uppercase tracking-widest text-theme-muted mb-3 text-center">
-                      Interactive Button Stack Preview
-                    </span>
-                    <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
-                      <button className="w-full sm:w-auto px-5 py-3 bg-[#C18C5D] text-black rounded-full text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md hover:bg-[#b07e50] transition-all">
-                        <span>{ctaEdit || 'Primary Action'}</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                      
-                      <button className="w-full sm:w-auto px-5 py-3 bg-theme-panel text-theme-text border border-theme-border rounded-full text-xs font-semibold uppercase tracking-wider flex items-center justify-center hover:bg-theme-panel-hover transition-all">
-                        <span>{secondaryCtaEdit || 'Secondary offer'}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Elite Copywriters critique / reasoning */}
-                <div className="bg-theme-card border border-theme-border rounded-xl p-4">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#C18C5D] mb-1.5 flex items-center gap-1.5">
-                    <BookOpen className="w-3.5 h-3.5" /> Copywriter’s Direct Critique
-                  </h3>
-                  <p className="text-xs text-theme-text/80 italic leading-relaxed">
-                    {explanationEdit}
-                  </p>
-                </div>
-
-              </div>
-            </div>
-
-            {/* Trigger actions */}
-            <div className="mt-8 pt-4 border-t border-theme-border flex flex-col sm:flex-row justify-between items-center gap-4">
-              <div className="text-xs text-theme-muted">
-                {copyFeedback ? (
-                  <span className="text-emerald-400 font-semibold">{copyFeedback}</span>
-                ) : (
-                  <span>Tweak in-line to adjust for exact layout spacing.</span>
-                )}
-              </div>
-              
-              <button
-                onClick={handleSaveToDrafts}
-                className="w-full sm:w-auto px-5 py-2.5 bg-[#C18C5D] hover:bg-[#b07e50] text-black text-xs font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-[#C18C5D]/10"
-              >
-                <Save className="w-3.5 h-3.5" />
-                <span>Save Draft To Workspace</span>
-              </button>
-            </div>
+          {/* Tab Selection Row */}
+          <div className="flex gap-2 p-1.5 bg-theme-panel border border-theme-border rounded-3xl">
+            <button
+              onClick={() => setActiveTab('editor')}
+              className={`flex-1 py-3 px-4 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                activeTab === 'editor'
+                  ? 'bg-[#C18C5D] text-black shadow-md font-extrabold'
+                  : 'text-theme-muted hover:text-theme-text hover:bg-theme-panel-hover'
+              }`}
+            >
+              📝 Pristine Copywriter Editor
+            </button>
+            <button
+              onClick={() => setActiveTab('landing-page')}
+              className={`flex-1 py-3 px-4 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                activeTab === 'landing-page'
+                  ? 'bg-[#14B8A6] text-white shadow-lg shadow-[#14B8A6]/25 font-extrabold'
+                  : 'text-[#14B8A6] hover:text-[#119f8f] hover:bg-[#14B8A6]/5'
+              }`}
+            >
+              <Sparkles className="w-4 h-4 text-inherit animate-pulse" />
+              🏥 Live Healthcare Landing Page Preview
+            </button>
           </div>
+
+          {activeTab === 'editor' ? (
+            /* Main Workspace Frame (Editor) */
+            <div className="bg-theme-panel border border-theme-border rounded-3xl p-6 flex flex-col justify-between flex-grow hover:border-theme-border-hover transition-all duration-300">
+              <div className="space-y-6">
+                
+                {/* Workspace Header Stats */}
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 pb-4 border-b border-theme-border">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse"></span>
+                      <h2 className="text-xs font-bold uppercase tracking-widest text-theme-text font-sans">
+                        Pristine Copywriter Editor
+                      </h2>
+                    </div>
+
+                    {/* Voice Model Matching State Badge */}
+                    <div 
+                      className={`flex items-center gap-1.5 border px-2 py-0.5 rounded-md text-[10px] font-mono font-bold transition-all duration-200 select-none ${
+                        tone.activeScore >= 2
+                          ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400'
+                          : tone.activeScore >= 1
+                            ? 'bg-amber-500/10 border-amber-500/25 text-amber-400'
+                            : 'bg-white/5 border-white/10 text-theme-muted'
+                      }`}
+                      title={`${tone.targetVoiceName}: Active keyword correlation matches: ${tone.activeScore}`}
+                    >
+                      <span className="text-xs">{tone.targetVoiceEmoji}</span>
+                      <span className="uppercase tracking-wider">{tone.confidenceLabel}</span>
+                    </div>
+
+                    {/* Raw Tension / Sentiment Balance */}
+                    <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-md px-2 py-0.5 text-[10px] font-mono text-theme-muted select-none">
+                      <span className="text-xs">{tone.sentimentEmoji}</span>
+                      <span className="text-theme-text uppercase tracking-wide">{tone.sentimentLabel}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 text-[11px] font-mono opacity-60 text-theme-muted flex-wrap">
+                    <span className="flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-[#C18C5D]" />
+                      <span>Framework: <strong className="text-theme-text">{framework}</strong></span>
+                    </span>
+                    
+                    <span className="w-px h-3 bg-white/10 hidden sm:inline"></span>
+                    
+                    <span className="flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-[#C18C5D]" />
+                      <span>
+                        Words: <strong className={getEditorWordCount() > wordCountLimit ? 'text-amber-400' : 'text-emerald-400'}>
+                          {getEditorWordCount()}
+                        </strong> / {wordCountLimit}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Sentiment & Archetype Voice Analyzer Panel */}
+                <div className="bg-theme-card border border-theme-border rounded-2xl p-4 space-y-3.5 hover:border-[#C18C5D]/30 transition-all duration-300 relative overflow-visible">
+                  <div className="flex justify-between items-center pb-2 border-b border-theme-border/50">
+                    <span className="text-[9.5px] font-bold uppercase tracking-widest text-[#C18C5D] flex items-center gap-1.5 select-none">
+                      <Sparkles className="w-3.5 h-3.5 animate-pulse" /> Content Tone & Sentiment Gauge
+                    </span>
+                    <span className="text-[8px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest font-extrabold animate-pulse select-none">
+                      Live Analysis Engine Active
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Left: Interactive Score Breakdown & Custom Suggestion Box */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl bg-white/5 border border-white/10 rounded-xl p-2 w-10 h-10 flex items-center justify-center select-none shadow-sm">{tone.targetVoiceEmoji}</span>
+                        <div>
+                          <div className="text-[11px] font-black text-theme-text font-sans uppercase tracking-wider flex items-center gap-1">
+                            {tone.targetVoiceName} Voice Overlap
+                          </div>
+                          <div className="text-[9px] font-bold text-theme-muted uppercase tracking-wider">
+                            Vibe: <span className="text-slate-300 italic">"{tone.targetToneDescr}"</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-theme-bg/60 p-3 rounded-xl text-[9.5px] leading-relaxed border border-theme-border/60">
+                        {tone.activeScore >= 2 ? (
+                          <div className="text-emerald-400 font-medium flex items-start gap-1.5">
+                            <span className="text-xs">✓</span>
+                            <span>
+                              <strong>Excellent Archetype Target Match!</strong> Your generated and edited copywriting successfully aligns with the official <span className="text-slate-200">"{tone.targetVoiceName}"</span> guidelines. The brand voice feels authentic and natural.
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="text-amber-400 font-medium flex items-start gap-1.5">
+                            <span className="text-xs">⚠</span>
+                            <span>
+                              <strong>Soft archeypal alignment.</strong> We recommend boosting brand-specific trust factors. Try spraying a few characteristic words like: <strong className="text-slate-100 font-mono italic">{tone.sampleKeywords.join(', ')}</strong> inside your headline or body blocks.
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right: Dual Visual Gauges & Ratios */}
+                    <div className="space-y-3 justify-end flex flex-col relative">
+                      
+                      {/* Interactive Popover Tooltips Box */}
+                      <AnimatePresence>
+                        {hoveredMetric === 'sentiment' && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            transition={{ duration: 0.15, ease: 'easeOut' }}
+                            className="absolute right-0 bottom-full mb-3 z-50 w-80 bg-theme-panel border border-[#C18C5D]/50 rounded-2xl p-4 shadow-2xl shadow-black/90 backdrop-blur-md text-xs space-y-3"
+                          >
+                            <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                              <span className="font-bold text-theme-text uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                                Sentiment Word Breakdown
+                              </span>
+                              <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded text-theme-muted font-mono font-bold">
+                                Delta: {tone.sentimentDiff > 0 ? `+${tone.sentimentDiff}` : tone.sentimentDiff}
+                              </span>
+                            </div>
+
+                            <div className="space-y-2.5">
+                              {/* Solutions List */}
+                              <div>
+                                <div className="text-[9px] font-bold uppercase text-emerald-400 mb-1 flex items-center justify-between tracking-wide font-mono">
+                                  <span>☀️ Solution / Reward Keys ({tone.positiveCount})</span>
+                                  <span className="opacity-60 text-[8px]">Action: Relief</span>
+                                </div>
+                                {tone.positiveMatched.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {tone.positiveMatched.map((word, idx) => (
+                                      <span key={idx} className="bg-emerald-500/10 text-emerald-400 text-[9px] px-1.5 py-0.5 rounded border border-emerald-500/20 font-mono lower">
+                                        {word}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-[9px] text-theme-muted italic">
+                                    No positive/solution phrases found yet. Use uplifting keys like "painless", "success", or "safe".
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Pain List */}
+                              <div>
+                                <div className="text-[9px] font-bold uppercase text-red-500 mb-1 flex items-center justify-between tracking-wide font-mono">
+                                  <span>⚡ Agitational Pain Keys ({tone.negativeCount})</span>
+                                  <span className="opacity-60 text-[8px]">Action: Tension</span>
+                                </div>
+                                {tone.negativeMatched.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {tone.negativeMatched.map((word, idx) => (
+                                      <span key={idx} className="bg-red-500/10 text-red-400 text-[9px] px-1.5 py-0.5 rounded border border-red-500/20 font-mono">
+                                        {word}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-[9px] text-theme-muted italic">
+                                    No emotional pain points detected. Try adding "problem", "strain", or "aches" to generate narrative friction.
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="bg-white/5 p-2 rounded-xl text-[9px] leading-relaxed text-theme-muted border border-white/5 font-sans">
+                                <strong>Conversion Science:</strong> Persuasive copy triggers a prospect's localized <strong>Tension Points</strong> first (Pain) before validating credibility with a <strong>Credible Solution</strong>.
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {hoveredMetric === 'voice' && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            transition={{ duration: 0.15, ease: 'easeOut' }}
+                            className="absolute right-0 bottom-full mb-3 z-50 w-80 bg-theme-panel border border-[#C18C5D]/50 rounded-2xl p-4 shadow-2xl shadow-black/90 backdrop-blur-md text-xs space-y-3"
+                          >
+                            <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                              <span className="font-bold text-theme-text uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                                <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                                Vibe Guidelines Alignment
+                              </span>
+                              <span className="text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded text-emerald-400 font-mono font-bold">
+                                {Math.round(Math.min(100, (tone.activeScore / 4) * 100))}% Match
+                              </span>
+                            </div>
+
+                            <div className="space-y-2.5">
+                              {/* Matched guides list */}
+                              <div>
+                                <div className="text-[9px] font-bold uppercase text-[#C18C5D] mb-1 font-mono tracking-wide">
+                                  ✓ Matched Guide Tokens ({tone.archetypeMatched.length})
+                                </div>
+                                {tone.archetypeMatched.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {tone.archetypeMatched.map((word, idx) => (
+                                      <span key={idx} className="bg-[#C18C5D]/10 text-[#C18C5D] text-[9px] px-1.5 py-0.5 rounded border border-[#C18C5D]/20 font-mono">
+                                        {word}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-[9px] text-theme-muted italic">
+                                    No matched guidelines keywords. Spray specialized tokens to build a target voice.
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Available Guides Checkbox list */}
+                              <div>
+                                <div className="text-[9px] font-bold uppercase text-theme-muted mb-1 font-mono tracking-wide">
+                                  🎯 Guide Vocabulary Guidelines (Snippet)
+                                </div>
+                                <div className="flex flex-wrap gap-1 select-none">
+                                  {tone.allArchetypeKeywords.slice(0, 12).map((word, idx) => {
+                                    const isMatched = tone.archetypeMatched.includes(word);
+                                    return (
+                                      <span 
+                                        key={idx} 
+                                        className={`text-[8.5px] px-1.5 py-0.5 rounded font-mono border ${
+                                          isMatched 
+                                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-bold' 
+                                            : 'bg-white/5 text-theme-muted/40 border-white/5'
+                                        }`}
+                                      >
+                                        {word}{isMatched ? ' ✓' : ''}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              <div className="bg-[#C18C5D]/5 p-2 rounded-xl text-[9px] leading-relaxed text-[#C18C5D] border border-[#C18C5D]/10 font-sans">
+                                <strong>Vibe Metric:</strong> "{tone.targetToneDescr}." Perfecting the keyword coverage creates massive authenticity matching.
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Diagnostic Emotion Tension Scale Segment (Hover Trigger) */}
+                      <div 
+                        onMouseEnter={() => setHoveredMetric('sentiment')}
+                        onMouseLeave={() => setHoveredMetric(null)}
+                        onClick={() => setHoveredMetric(hoveredMetric === 'sentiment' ? null : 'sentiment')}
+                        className="bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.02] hover:border-white/10 rounded-xl p-2.5 transition-all duration-200 cursor-help select-none group"
+                      >
+                        <div className="flex justify-between text-[9px] font-mono text-theme-muted mb-1 uppercase tracking-wider">
+                          <span className="flex items-center gap-1.5">
+                            Diagnostic Balance: <strong className="text-slate-300 group-hover:text-[#C18C5D] transition-colors">{tone.sentimentEmoji} {tone.sentimentLabel}</strong>
+                            <Info className="w-3 h-3 opacity-45 group-hover:opacity-100 transition-opacity text-[#C18C5D]" />
+                          </span>
+                          <span className="font-bold text-theme-text text-[10px]">Delta: {tone.sentimentDiff > 0 ? `+${tone.sentimentDiff}` : tone.sentimentDiff}</span>
+                        </div>
+                        <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden flex border border-white/5">
+                          {/* Agitation / Pain index */}
+                          <div 
+                            className="bg-red-500/40 duration-300 transition-all border-r border-black/20" 
+                            style={{ width: `${Math.max(5, Math.min(90, (tone.negativeCount / Math.max(1, tone.positiveCount + tone.negativeCount)) * 100))}%` }}
+                          ></div>
+                          {/* Uplifting / Benefits index */}
+                          <div 
+                            className="bg-emerald-500/40 flex-1 duration-300 transition-all"
+                          ></div>
+                        </div>
+                        <div className="flex justify-between text-[8px] font-mono font-bold uppercase tracking-widest mt-1">
+                          <span className="text-red-400/80 flex items-center gap-0.5">● {tone.negativeCount} Pain triggers</span>
+                          <span className="text-emerald-400/80 flex items-center gap-0.5">{tone.positiveCount} Solution rewards ●</span>
+                        </div>
+                      </div>
+
+                      {/* Brand alignment match progress index Segment (Hover Trigger) */}
+                      <div 
+                        onMouseEnter={() => setHoveredMetric('voice')}
+                        onMouseLeave={() => setHoveredMetric(null)}
+                        onClick={() => setHoveredMetric(hoveredMetric === 'voice' ? null : 'voice')}
+                        className="bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.02] hover:border-white/10 rounded-xl p-2.5 transition-all duration-200 cursor-help select-none group"
+                      >
+                        <div className="flex justify-between text-[9px] font-mono text-theme-muted mb-1 uppercase tracking-wider">
+                          <span className="flex items-center gap-1.5">
+                            Identity Verification Coverage:
+                            <Info className="w-3 h-3 opacity-45 group-hover:opacity-100 transition-opacity text-[#C18C5D]" />
+                          </span>
+                          <span className="font-bold text-theme-text text-[10px]">{tone.activeScore} unique match markers</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                          <div 
+                            className="bg-[#C18C5D] h-full duration-300 transition-all rounded-full" 
+                            style={{ width: `${Math.min(100, (tone.activeScore / 5) * 100)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Active Conversion Triggers Dashboard */}
+                <div className="bg-theme-card border border-theme-border rounded-2xl p-4 space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-theme-muted">
+                      Conversion Trigger Analyzer
+                    </span>
+                    <span className="text-[9px] font-mono font-bold text-[#C18C5D]">
+                      Score: {getActiveTriggers().length} / {getTriggerWords().length} Active
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-6 gap-2">
+                    {getTriggerWords().map((word) => {
+                      const isActive = getActiveTriggers().includes(word);
+                      return (
+                        <div
+                          key={word}
+                          className={`py-1.5 px-1.5 rounded-lg text-[9.5px] font-bold uppercase tracking-wide text-center border transition-all truncate ${
+                            isActive
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_2px_10px_-4px_rgba(16,185,129,0.2)]'
+                              : 'bg-transparent text-theme-muted/50 border-theme-border/60 border-dashed'
+                          }`}
+                          title={isActive ? `"${word}" is active inside copy!` : `Try adding "${word}" to boost copy resonance.`}
+                        >
+                          <span className="mr-0.5">{isActive ? '✓' : '•'}</span>
+                          <span>{word}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* LIVE TACTILE EDITOR INPUTS */}
+                <div className="space-y-4">
+                  
+                  {/* Headline input (conditionally displayed if available in response) */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-theme-muted">
+                        {assetType === 'closing-cta' ? 'Urgency- / Proximity-Based Hook' : 'Primary Headline (Pattern Disruptor)'}
+                      </label>
+                      <button 
+                        onClick={() => handleCopyToClipboard(headlineEdit, assetType === 'closing-cta' ? 'Urgency Hook' : 'Headline')}
+                        className="text-[10px] text-[#C18C5D] hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={headlineEdit}
+                      onChange={(e) => setHeadlineEdit(e.target.value)}
+                      className="w-full bg-theme-input border border-theme-input-border rounded-xl px-4 py-3 text-sm font-bold text-theme-text focus:outline-none focus:border-[#C18C5D] bg-theme-bg"
+                      placeholder={assetType === 'closing-cta' ? "e.g., Only 12 peak-hour desks remain today (2 mins from Koramangala park)..." : "Provide a pattern disruptor headline..."}
+                    />
+                  </div>
+
+                  {/* Subheadline input (conditionally shown) */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-theme-muted">
+                        {assetType === 'closing-cta' ? 'Trust-Building Micro-Copy (Social Proof)' : 'Subheadline (Immediate Functional Benefit)'}
+                      </label>
+                      <button 
+                        onClick={() => handleCopyToClipboard(subheadlineEdit, assetType === 'closing-cta' ? 'Social Proof' : 'Subheadline')}
+                        className="text-[10px] text-[#C18C5D] hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={subheadlineEdit}
+                      onChange={(e) => setSubheadlineEdit(e.target.value)}
+                      className="w-full bg-theme-input border border-theme-input-border rounded-xl px-4 py-2.5 text-xs text-theme-text focus:outline-none focus:border-[#C18C5D] bg-theme-bg"
+                      placeholder={assetType === 'closing-cta' ? "e.g., Rated 4.9/5 stars by 400+ Bangalore remote engineers." : "Provide subtext highlighting immediate value props..."}
+                    />
+                  </div>
+
+                  {/* Core Framework Body Statement */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-theme-muted">
+                        {assetType === 'closing-cta' ? 'Local SEO Details (Address, Hours, Contact)' : `Persuasive Body Copy (Structured by ${framework})`}
+                      </label>
+                      <button 
+                        onClick={() => handleCopyToClipboard(bodyEdit, assetType === 'closing-cta' ? 'Local SEO Details' : 'Body Copy')}
+                        className="text-[10px] text-[#C18C5D] hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <textarea
+                      value={bodyEdit}
+                      onChange={(e) => setBodyEdit(e.target.value)}
+                      rows={6}
+                      className="w-full bg-theme-input border border-theme-input-border rounded-xl p-4 text-xs leading-relaxed text-theme-text focus:outline-none focus:border-[#C18C5D] font-mono resize-y bg-theme-bg"
+                      placeholder={assetType === 'closing-cta' ? "e.g., 14, 80 Feet Rd, Koramangala...\nOpen Mon-Sun: 8:00 AM - 11:00 PM\nHotline: +91 80 4912 3670" : "Persuasive body block..."}
+                    />
+                  </div>
+
+                  {/* Low friction Action/CTA */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Inputs Column */}
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-theme-muted mb-1.5">
+                          Primary Conversion CTA Button
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={ctaEdit}
+                            onChange={(e) => setCtaEdit(e.target.value)}
+                            className="w-full bg-theme-input border border-theme-input-border rounded-xl px-4 py-2.5 text-xs text-theme-text focus:outline-none focus:border-[#C18C5D] font-semibold bg-theme-bg"
+                            placeholder="Primary CTA Label"
+                          />
+                          <button 
+                            onClick={() => handleCopyToClipboard(ctaEdit, 'Primary CTA')}
+                            className="p-2.5 bg-theme-card border border-theme-border rounded-xl text-xs text-[#C18C5D] hover:text-theme-text"
+                            title="Copy Primary CTA"
+                          >
+                            <Clipboard className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-[#C18C5D] mb-1.5">
+                          Secondary (Low-friction Alternate) CTA
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={secondaryCtaEdit}
+                            onChange={(e) => setSecondaryCtaEdit(e.target.value)}
+                            className="w-full bg-theme-input border border-theme-input-border rounded-xl px-4 py-2.5 text-xs text-theme-text focus:outline-none focus:border-[#C18C5D] font-medium bg-theme-bg"
+                            placeholder="Secondary CTA..."
+                          />
+                          <button 
+                            onClick={() => handleCopyToClipboard(secondaryCtaEdit, 'Secondary CTA')}
+                            className="p-2.5 bg-theme-card border border-theme-border rounded-xl text-xs text-[#C18C5D] hover:text-theme-text"
+                            title="Copy Secondary CTA"
+                          >
+                            <Clipboard className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Visual Preview Panel */}
+                    <div className="flex flex-col justify-center bg-theme-card/30 rounded-2xl border border-theme-border p-4">
+                      <span className="block text-[10px] font-bold uppercase tracking-widest text-theme-muted mb-3 text-center">
+                        Interactive Button Stack Preview
+                      </span>
+                      <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
+                        <button className="w-full sm:w-auto px-5 py-3 bg-[#C18C5D] text-black rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md hover:bg-[#b07e50] transition-all">
+                          <span>{ctaEdit || 'Primary Action'}</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                        
+                        <button className="w-full sm:w-auto px-5 py-3 bg-theme-panel text-theme-text border border-theme-border rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center justify-center hover:bg-theme-panel-hover transition-all">
+                          <span>{secondaryCtaEdit || 'Secondary offer'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Elite Copywriters critique / reasoning */}
+                  <div className="bg-theme-card border border-theme-border rounded-xl p-4">
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#C18C5D] mb-1.5 flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5" /> Copywriter’s Direct Critique
+                    </h3>
+                    <p className="text-xs text-theme-text/80 italic leading-relaxed">
+                      {explanationEdit}
+                    </p>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Trigger actions */}
+              <div className="mt-8 pt-4 border-t border-theme-border flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="text-xs text-theme-muted">
+                  {copyFeedback ? (
+                    <span className="text-emerald-400 font-semibold">{copyFeedback}</span>
+                  ) : (
+                    <span>Tweak in-line to adjust for exact layout spacing.</span>
+                  )}
+                </div>
+                
+                <button
+                  onClick={handleSaveToDrafts}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-[#C18C5D] hover:bg-[#b07e50] text-black text-xs font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-[#C18C5D]/10"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Save Draft To Workspace</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Live Healthcare Landing Page Preview Screen styled in precise aesthetic */
+            <HealthcareLandingPage
+              headline={headlineEdit}
+              subheadline={subheadlineEdit}
+              body={bodyEdit}
+              cta={ctaEdit}
+              secondaryCta={secondaryCtaEdit}
+              clientProfile={profile}
+              framework={framework}
+              explanation={explanationEdit}
+            />
+          )}
           
           {/* Detailed step framework explanation */}
           <div className="bg-theme-panel border border-theme-border rounded-3xl p-5">
@@ -1914,14 +2498,37 @@ export default function App() {
 
       </main>
 
-      {/* Decorative footer */}
-      <footer className="mt-12 pt-6 border-t border-theme-border flex justify-between items-center text-[10px] text-theme-muted tracking-wider">
-        <span>{profile.businessName} Copywriting Console • {profile.location.split(',').slice(-2).join(', ').trim() || 'Kerala'}</span>
-        <span>Version 1.0.0 (Tactile Bento Theme)</span>
+      </div>
+
+      {/* Decorative Elite status-bar footer */}
+      <footer className="fixed bottom-0 left-0 right-0 h-10 z-40 bg-theme-panel/90 backdrop-blur-md border-t border-theme-border/85 flex items-center justify-between px-4 sm:px-6 md:px-8 text-[9px] uppercase tracking-wider text-theme-muted select-none font-sans shadow-lg shadow-black/40">
+        <div className="flex items-center gap-2 font-mono truncate">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#C18C5D] animate-pulse"></span>
+          <span className="font-bold text-theme-muted/90 truncate">{profile.businessName.toUpperCase()} CONSOLE</span>
+          <span className="text-theme-muted/30">|</span>
+          <span className="hidden md:inline">{profile.location.split(',').slice(-2).join(', ').trim() || 'Kerala'}</span>
+        </div>
+        
+        {/* Subtle Saved indicator with dynamic auto-saving dot */}
+        <div className="flex items-center gap-4">
+          {lastAutoSavedAt ? (
+            <span className="flex items-center gap-1.5 text-emerald-400 font-bold font-mono">
+              <span className={`w-1.5 h-1.5 rounded-full bg-emerald-400 ${isAutoSaving ? 'animate-ping' : ''}`}></span>
+              <span>STATE AUTO-SAVED AT <strong className="font-mono">{lastAutoSavedAt}</strong></span>
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-theme-muted/70 opacity-80 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-theme-muted/40"></span>
+              <span>AUTO-SAVE ARMED</span>
+            </span>
+          )}
+          <span className="text-theme-muted/30 font-mono">|</span>
+          <span className="text-[9px] opacity-75 font-mono">v1.1.0</span>
+        </div>
       </footer>
 
       {/* Quick Action Floating Menu */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 font-sans">
+      <div className="fixed bottom-14 right-6 z-50 flex flex-col items-end gap-3 font-sans">
         {isQuickMenuOpen && (
           <div className="flex flex-col gap-2 items-end bg-theme-panel/95 backdrop-blur-md border border-theme-border p-3 rounded-2xl shadow-2xl animate-fade-in divide-y divide-theme-border flex-wrap min-w-[200px]">
             <div className="px-2 py-1 text-[9px] font-bold tracking-widest text-[#C18C5D] uppercase font-mono mb-1 w-full text-right">
