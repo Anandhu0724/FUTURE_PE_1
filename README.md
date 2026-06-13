@@ -21,7 +21,7 @@ Before starting your first client copy sprint, watch this complete walkthrough v
       <a href="https://drive.google.com/file/d/1iVnEaYg6UTOvB4jCdnHWriWBN6J_j-0n/view?usp=sharing" target="_blank">
         <img src="https://github.com/user-attachments/assets/4360e650-5f59-4480-ae83-9db2fa6051b5" width="600px" alt="Watch Intern Training Video" style="border-radius:12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />
         <br />
-        <sub>▶️ <b>Click Here to Watch the Full Training Guide on Google Drive</b></sub>
+        <sub>▶️ <b>Click Here to Watch the running video on Google Drive</b></sub>
       </a>
     </td>
   </tr>
