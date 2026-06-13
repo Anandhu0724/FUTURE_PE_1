@@ -35,7 +35,7 @@ To ensure brand consistency across client deliverables, all landing pages genera
 ### 🖼️ 1. Hero Section Layout
 An asymmetric design mapping the psychological copy points directly against clean, high-contrast imagery.
 <p align="center">
-  <img src="<img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/79d39a2d-af95-4dfa-a8e5-cacef469a4ed" />
+  <img src="<img width="1280" height="720" alt="Capture" src="https://github.com/user-attachments/assets/c2c3d460-2db2-4da4-a7a1-5329811386cb" height="720" alt="image" src="https://github.com/user-attachments/assets/79d39a2d-af95-4dfa-a8e5-cacef469a4ed" />
 " width="800px" alt="Hero Section UI Blueprint" style="border-radius: 8px; border: 1px solid #e1e4e8;" />
 </p>
 
