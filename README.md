@@ -35,18 +35,14 @@ To ensure brand consistency across client deliverables, all landing pages genera
 ### 🖼️ 1. Hero Section Layout
 An asymmetric design mapping the psychological copy points directly against clean, high-contrast imagery.
 <p align="center">
-  <img src="<img width="1280" height="720" alt="Capture" src="https://github.com/user-attachments/assets/c2c3d460-2db2-4da4-a7a1-5329811386cb" height="720" alt="image" src="https://github.com/user-attachments/assets/79d39a2d-af95-4dfa-a8e5-cacef469a4ed" />
-" width="800px" alt="Hero Section UI Blueprint" style="border-radius: 8px; border: 1px solid #e1e4e8;" />
+  <img src="https://github.com/user-attachments/assets/c2c3d460-2db2-4da4-a7a1-5329811386cb" width="800px" alt="Hero Section UI Blueprint" style="border-radius: 8px; border: 1px solid #e1e4e8;" />
 </p>
 
 ### 🖼️ 2. Dynamic Features & Services Grid
 A clean, grid-based card structure built to break down technical or clinical methodologies cleanly.
 <p align="center">
-  <img src="<img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/fec145c7-a2e2-4477-bf71-15304fc81e9c" />
-" width="800px" alt="Services Grid UI Blueprint" style="border-radius: 8px; border: 1px solid #e1e4e8;" />
+  <img src="https://github.com/user-attachments/assets/c2c3d460-2db2-4da4-a7a1-5329811386cb" width="800px" alt="Services Grid UI Blueprint" style="border-radius: 8px; border: 1px solid #e1e4e8;" />
 </p>
-
-> 💡 *Quick Tip for Interns: Drag and drop your application screenshots directly into the GitHub markdown editor to auto-generate asset URLs, then swap out `YOUR_HERO_IMAGE_PATH_OR_URL_HERE` and `YOUR_SERVICES_IMAGE_PATH_OR_URL_HERE` above.*
 
 ---
 
