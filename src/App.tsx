@@ -290,6 +290,7 @@ export default function App() {
       setBodyEdit(found.initialGeneration.bodyText);
       setCtaEdit(found.initialGeneration.callToAction || '');
       setExplanationEdit(found.initialGeneration.explanation || 'Pragmatic, benefits-first setup.');
+      setGenerationKey(prev => prev + 1);
       
       setCopyFeedback(`Switched archetype to ${found.name}!`);
       setTimeout(() => setCopyFeedback(null), 2500);
@@ -309,6 +310,7 @@ export default function App() {
   const [secondaryCtaEdit, setSecondaryCtaEdit] = useState<string>('View today\'s roast selection');
   const [explanationEdit, setExplanationEdit] = useState<string>(INITIAL_GENERATION.explanation || '');
   const [hoveredMetric, setHoveredMetric] = useState<'sentiment' | 'voice' | null>(null);
+  const [generationKey, setGenerationKey] = useState<number>(0);
 
   // Saved workspace list
   const [drafts, setDrafts] = useState<WorkspaceDraft[]>([]);
@@ -457,8 +459,39 @@ export default function App() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error ${response.status}`);
+        let errMsg = `HTTP error ${response.status}`;
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errMsg = errorData.error || errMsg;
+          } else {
+            const textData = await response.text();
+            if (textData && textData.trim().startsWith('{')) {
+              try {
+                const parsed = JSON.parse(textData);
+                errMsg = parsed.error || errMsg;
+              } catch (_) {
+                errMsg = textData.substring(0, 150);
+              }
+            } else if (textData && textData.length < 300) {
+              errMsg = textData.trim();
+            } else {
+              errMsg = `Server returned an HTML or text error (status ${response.status}). This often means the API route failed to resolve or the dev server was restarting.`;
+            }
+          }
+        } catch (parseErr) {
+          console.error('Error parsing response error:', parseErr);
+        }
+        throw new Error(errMsg);
+      }
+
+      // Check content-type of response
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const textPayload = await response.text();
+        console.error('Expected JSON but got:', textPayload);
+        throw new Error('Server returned an invalid non-JSON payload (like HTML). This usually means the server is stale or restarting; please wait 5 seconds and retry.');
       }
 
       const copyData: CopyGenerationResponse = await response.json();
@@ -469,6 +502,7 @@ export default function App() {
       setBodyEdit(copyData.bodyText);
       setCtaEdit(copyData.callToAction || '');
       setExplanationEdit(copyData.explanation || 'Constructed with fluff-free frameworks.');
+      setGenerationKey(prev => prev + 1);
       
       // Auto success feedback
       setCopyFeedback('Generated new pristine copy!');
@@ -554,6 +588,7 @@ export default function App() {
     setBodyEdit(draft.response.bodyText);
     setCtaEdit(draft.response.callToAction || '');
     setExplanationEdit(draft.response.explanation || '');
+    setGenerationKey(prev => prev + 1);
 
     setDraftNotification(`Loaded draft: ${draft.title}`);
     setTimeout(() => setDraftNotification(null), 2500);
@@ -1881,7 +1916,13 @@ export default function App() {
 
           {activeTab === 'editor' ? (
             /* Main Workspace Frame (Editor) */
-            <div className="bg-theme-panel border border-theme-border rounded-3xl p-6 flex flex-col justify-between flex-grow hover:border-theme-border-hover transition-all duration-300">
+            <motion.div
+              key={generationKey}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-theme-panel border border-theme-border rounded-3xl p-6 flex flex-col justify-between flex-grow hover:border-theme-border-hover transition-all duration-300"
+            >
               <div className="space-y-6">
                 
                 {/* Workspace Header Stats */}
@@ -2291,6 +2332,24 @@ export default function App() {
                       className="w-full bg-theme-input border border-theme-input-border rounded-xl p-4 text-xs leading-relaxed text-theme-text focus:outline-none focus:border-[#C18C5D] font-mono resize-y bg-theme-bg"
                       placeholder={assetType === 'closing-cta' ? "e.g., 14, 80 Feet Rd, Koramangala...\nOpen Mon-Sun: 8:00 AM - 11:00 PM\nHotline: +91 80 4912 3670" : "Persuasive body block..."}
                     />
+                    <div className="flex flex-wrap justify-between items-center mt-2 px-1 text-[10px] font-mono text-theme-muted gap-2 select-none">
+                      <span className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-theme-muted/60" />
+                        <span>Words: <strong className="text-theme-text font-bold">{bodyEdit.trim() ? bodyEdit.trim().split(/\s+/).filter(Boolean).length : 0}</strong></span>
+                      </span>
+                      <span className="flex items-center gap-1.5" title="Estimated reading time assuming standard 200 words per minute (WPM).">
+                        <Clock className="w-3.5 h-3.5 text-[#C18C5D]" />
+                        <span>Est. Reading Time: <strong className="text-theme-text font-bold">{(() => {
+                          const words = bodyEdit.trim() ? bodyEdit.trim().split(/\s+/).filter(Boolean).length : 0;
+                          const seconds = Math.ceil((words / 200) * 60);
+                          if (seconds === 0) return '0s';
+                          if (seconds < 60) return `${seconds}s`;
+                          const minutes = Math.floor(seconds / 60);
+                          const remainingSeconds = seconds % 60;
+                          return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+                        })()}</strong></span>
+                      </span>
+                    </div>
                   </div>
 
                   {/* Low friction Action/CTA */}
@@ -2391,7 +2450,7 @@ export default function App() {
                   <span>Save Draft To Workspace</span>
                 </button>
               </div>
-            </div>
+            </motion.div>
           ) : (
             /* Live Healthcare Landing Page Preview Screen styled in precise aesthetic */
             <HealthcareLandingPage
