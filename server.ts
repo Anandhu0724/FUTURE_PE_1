@@ -17,6 +17,18 @@ const PORT = 3000;
 // Body parsing middleware
 app.use(express.json());
 
+// Enable CORS for external client alignments (like Netlify, Vercel, etc.)
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(204);
+    return;
+  }
+  next();
+});
+
 // Initialize Gemini API Client
 const apiKey = process.env.GEMINI_API_KEY;
 

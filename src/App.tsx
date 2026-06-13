@@ -439,13 +439,28 @@ export default function App() {
     localStorage.setItem('espresso_copy_drafts', JSON.stringify(newList));
   };
 
+  // Dynamically resolve API paths to support external client deploys (like Netlify) pointing to custom backends
+  const getApiUrl = (endpoint: string): string => {
+    const metaEnv = (import.meta as any).env || {};
+    const envApiUrl = metaEnv.VITE_API_URL || metaEnv.VITE_APP_URL || '';
+    if (envApiUrl) {
+      const trimmedBase = envApiUrl.endsWith('/') ? envApiUrl.slice(0, -1) : envApiUrl;
+      const trimmedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+      const resolved = `${trimmedBase}${trimmedEndpoint}`;
+      console.log(`[API Resolver] Routing copy generate request to external endpoint: ${resolved}`);
+      return resolved;
+    }
+    return endpoint; // Default relative path
+  };
+
   // Run proxy generation callback
   const handleGenerateCopy = async () => {
     setIsGenerating(true);
     setErrorMessage(null);
 
     try {
-      const response = await fetch('/api/copy/generate', {
+      const requestUrl = getApiUrl('/api/copy/generate');
+      const response = await fetch(requestUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -467,17 +482,20 @@ export default function App() {
             errMsg = errorData.error || errMsg;
           } else {
             const textData = await response.text();
-            if (textData && textData.trim().startsWith('{')) {
+            const containsHtml = /<[a-z][\s\S]*>/i.test(textData) || textData.includes('<!DOCTYPE') || textData.includes('<html');
+            if (containsHtml) {
+              errMsg = `The request returned an HTML error page (status ${response.status}). If you deployed statically to a client-only host like Netlify, make sure you configure your VITE_API_URL environment variable to point to your live running backend server.`;
+            } else if (textData && textData.trim().startsWith('{')) {
               try {
                 const parsed = JSON.parse(textData);
                 errMsg = parsed.error || errMsg;
               } catch (_) {
                 errMsg = textData.substring(0, 150);
               }
-            } else if (textData && textData.length < 300) {
+            } else if (textData && textData.length < 300 && !textData.trim().startsWith('<')) {
               errMsg = textData.trim();
             } else {
-              errMsg = `Server returned an HTML or text error (status ${response.status}). This often means the API route failed to resolve or the dev server was restarting.`;
+              errMsg = `Server returned an HTML or text error (status ${response.status}). Keep in mind that a client-only front-end deployment requires a separate backend service; please check your VITE_API_URL setup.`;
             }
           }
         } catch (parseErr) {
@@ -491,7 +509,11 @@ export default function App() {
       if (!contentType || !contentType.includes('application/json')) {
         const textPayload = await response.text();
         console.error('Expected JSON but got:', textPayload);
-        throw new Error('Server returned an invalid non-JSON payload (like HTML). This usually means the server is stale or restarting; please wait 5 seconds and retry.');
+        const containsHtml = /<[a-z][\s\S]*>/i.test(textPayload) || textPayload.includes('<!DOCTYPE') || textPayload.includes('<html');
+        if (containsHtml) {
+          throw new Error(`Server returned an HTML response page (status ${response.status}) instead of JSON. If your frontend is on Netlify or Vercel, check that your dynamic VITE_API_URL points to the correct backend host.`);
+        }
+        throw new Error('Server returned an invalid non-JSON payload. This usually means the server is stale or restarting; please wait 5 seconds and retry.');
       }
 
       const copyData: CopyGenerationResponse = await response.json();
